@@ -81,6 +81,10 @@ public class MainActivity extends Activity {
     private final List<View> pills = new ArrayList<>();
 
     private HomeScrollView scroll;
+    private final Handler idleHandler = new Handler(Looper.getMainLooper());
+    private final Runnable hideUiRunnable = this::hideInterface;
+    private static final long IDLE_TIMEOUT_MS = 30000;
+    private boolean isUiHidden = false;
     private LinearLayout content, dockRow;
     private FrameLayout hero;
     private LinearLayout grid;
@@ -136,6 +140,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        resetIdleTimer();
         IntentFilter tf = new IntentFilter(Intent.ACTION_TIME_TICK);
         tf.addAction(Intent.ACTION_TIME_CHANGED);
         tf.addAction(Intent.ACTION_TIMEZONE_CHANGED);
@@ -157,6 +162,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        idleHandler.removeCallbacks(hideUiRunnable);
         handler.removeCallbacks(rotateWallpaper);
         unregisterReceiver(tick);
         if (inputsPopup != null) inputsPopup.dismiss();
@@ -839,8 +845,9 @@ public class MainActivity extends Activity {
         return Color.rgb((int) (Color.red(c) * f), (int) (Color.green(c) * f), (int) (Color.blue(c) * f));
     }
 
-    @Override
+ @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
+        resetIdleTimer();
         // Menu key on the remote opens the Inputs dropdown.
         if (e.getKeyCode() == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_UP && !pills.isEmpty()) {
             showInputs(pills.get(0));
@@ -863,4 +870,39 @@ public class MainActivity extends Activity {
         HomeScrollView(Context c) { super(c); }
         @Override protected int computeScrollDeltaToGetChildRectOnScreen(android.graphics.Rect r) { return 0; }
     }
+private void hideInterface() {
+        if (isUiHidden) return;
+        isUiHidden = true;
+        if (scroll != null) scroll.animate().alpha(0f).setDuration(600).start();
+        if (clock != null) clock.animate().alpha(0f).setDuration(600).start();
+        if (greeting != null) greeting.animate().alpha(0f).setDuration(600).start();
+        if (date != null) date.animate().alpha(0f).setDuration(600).start();
+        for (View p : pills) {
+            if (p != null) p.animate().alpha(0f).setDuration(600).start();
+        }
+    }
+
+    private void showInterface() {
+        if (!isUiHidden) return;
+        isUiHidden = false;
+        if (scroll != null) scroll.animate().alpha(1f).setDuration(250).start();
+        if (clock != null) clock.animate().alpha(1f).setDuration(250).start();
+        if (greeting != null) greeting.animate().alpha(1f).setDuration(250).start();
+        if (date != null) date.animate().alpha(1f).setDuration(250).start();
+        for (View p : pills) {
+            if (p != null) p.animate().alpha(1f).setDuration(250).start();
+        }
+    }
+
+    private void resetIdleTimer() {
+        showInterface();
+        idleHandler.removeCallbacks(hideUiRunnable);
+        idleHandler.postDelayed(hideUiRunnable, IDLE_TIMEOUT_MS);
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        resetIdleTimer();
+    }    
 }
