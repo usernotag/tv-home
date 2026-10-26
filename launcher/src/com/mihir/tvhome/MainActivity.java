@@ -624,14 +624,30 @@ public class MainActivity extends Activity {
     private void updateWifi() {
         String name = "Wi-Fi";
         try {
-            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-            if (wm != null && wm.getConnectionInfo() != null) {
-                String s = wm.getConnectionInfo().getSSID();
-                if (s != null && !s.contains("unknown ssid")) name = s.replace("\"", "");
-                if (wm.getConnectionInfo().getNetworkId() == -1) name = "Offline";
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (cm != null) {
+                android.net.NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                boolean isConnected = activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+                if (isConnected) {
+                    WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                    if (wm != null && wm.getConnectionInfo() != null) {
+                        String s = wm.getConnectionInfo().getSSID();
+                        if (s != null && !s.contains("unknown ssid") && !s.isEmpty()) {
+                            name = s.replace("\"", "");
+                        } else {
+                            name = (activeNetwork.getType() == android.net.ConnectivityManager.TYPE_ETHERNET) ? "Ethernet" : "Connected";
+                        }
+                    } else {
+                        name = "Connected";
+                    }
+                } else {
+                    name = "Offline";
+                }
             }
-        } catch (SecurityException ignored) { }
-        wifiPill.setText("◉  " + name);
+        } catch (Exception ignored) {
+            name = "Connected";
+        }
+        wifiPill.setText("• " + name);
     }
 
     // ---------------------------------------------------------------- glow
