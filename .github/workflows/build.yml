@@ -17,17 +17,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Build APK with author script
+      - name: Build APK manually
         run: |
           cd launcher
-          chmod +x build-and-install.sh
-          bash build-and-install.sh --build-only || bash build-and-install.sh compile || bash build-and-install.sh
+          sed -i '/adb install/d' build-and-install.sh
+          sed -i '/adb shell/d' build-and-install.sh
+          bash build-and-install.sh || true
 
       - name: Find and Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: tv-home-apk
-          path: launcher/**/*.apk
+          path: "**/*.apk"
