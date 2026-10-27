@@ -55,13 +55,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Apple TV style home screen: clock top-left, pills top-right, the focused dock app's name over an
- * ambient glow, a dock of pinned apps, and every other app in a grid that scrolls up on Down.
- * Plain framework views only (no AndroidX), no network, no background work.
+ * Apple TV style home screen customized for Yandex TV (YaOS).
  */
 public class MainActivity extends Activity {
 
-    // Dock, hidden apps, Live TV and grid width come from res/values/config.xml.
     private String[] dockApps;
     private final Set<String> hidden = new HashSet<>();
     private String liveTvPkg, inputPickerPkg;
@@ -85,7 +82,7 @@ public class MainActivity extends Activity {
     private final Runnable hideUiRunnable = this::hideInterface;
     private static final long IDLE_TIMEOUT_MS = 120000;
     private static final long WALLPAPER_INTERVAL_ACTIVE = 12 * 60 * 1000L;
-private static final long WALLPAPER_INTERVAL_IDLE = 3 * 60 * 1000L;
+    private static final long WALLPAPER_INTERVAL_IDLE = 3 * 60 * 1000L;
     private boolean isUiHidden = false;
     private LinearLayout content, dockRow;
     private FrameLayout hero;
@@ -98,7 +95,6 @@ private static final long WALLPAPER_INTERVAL_IDLE = 3 * 60 * 1000L;
     private long wallChangedAt;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable rotateWallpaper = this::nextWallpaper;
-    static final long WALLPAPER_INTERVAL_MS = 10 * 60 * 1000;
     private TextView greeting, clock, ampm, date, title, wifiPill, appsLabel;
     private int glowColor = 0xFF3A3A3A;
     private ValueAnimator glowAnim;
@@ -153,12 +149,10 @@ private static final long WALLPAPER_INTERVAL_IDLE = 3 * 60 * 1000L;
         View last = lastFocusedId == View.NO_ID ? null : findViewById(lastFocusedId);
         if (last == null && !dockCards.isEmpty()) last = dockCards.get(0);
         if (last != null) last.requestFocus();
-        // Catch installs/removals that happened while another app was in front.
         if (getPackageManager().getChangedPackages(packageSeq) != null) buildApps();
         if (firstShow) { firstShow = false; playEntrance(); }
-        // New photo on return if the current one has been up for the full interval.
         if (wallIndex < 0 || SystemClock.elapsedRealtime() - wallChangedAt >= getWallpaperInterval()) nextWallpaper();
-else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() - wallChangedAt));
+        else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() - wallChangedAt));
     }
 
     @Override
@@ -179,7 +173,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        // Home pressed while already home: jump back to the first dock app.
         if (inputsPopup != null) inputsPopup.dismiss();
         if (!dockCards.isEmpty()) dockCards.get(0).requestFocus();
         scroll.smoothScrollTo(0, 0);
@@ -187,7 +180,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
 
     @Override
     public void onBackPressed() {
-        // Home has nowhere to go back to; Back from the grid returns to the dock.
         if (scroll.getScrollY() > 0 && !dockCards.isEmpty()) dockCards.get(0).requestFocus();
     }
 
@@ -197,12 +189,11 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
-        // Wallpaper: two stacked layers so a new photo can crossfade in over the old one.
         wallBack = wallpaperLayer();
         wallFront = wallpaperLayer();
         root.addView(wallBack, new FrameLayout.LayoutParams(-1, -1));
         root.addView(wallFront, new FrameLayout.LayoutParams(-1, -1));
-        // Scrim: darker at the top (clock, pills) and bottom (dock) so text stays readable.
+
         View scrim = new View(this);
         scrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0xB3000000, 0x40000000, 0x26000000, 0x8C000000, 0xE6000000}));
@@ -231,7 +222,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         content.setClipToPadding(false);
         scroll.addView(content, new FrameLayout.LayoutParams(-1, -2));
 
-        // Hero: exactly one screen tall, header on top, title + dock at the bottom.
         hero = new FrameLayout(this);
         hero.setClipChildren(false);
         int screenH = getResources().getDisplayMetrics().heightPixels;
@@ -301,7 +291,7 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
 
         date = text(10, "sans-serif-medium", 0x99FFFFFF);
         date.setSingleLine(true);
-        date.setPadding(0, 0, dp(16), 0); // letterSpacing is not counted in the measured width
+        date.setPadding(0, 0, dp(16), 0);
         date.setLetterSpacing(0.22f);
         left.addView(date);
         for (TextView t : new TextView[]{greeting, clock, ampm, date}) {
@@ -313,8 +303,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
         right.setClipChildren(false);
-        // TextView inputs = pill("Inputs", "→");
-// inputs.setOnClickListener(v -> showInputs(v));
         wifiPill = pill("Wi-Fi", "◉");
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
         TextView settings = pill("Settings", "⚙");
@@ -355,9 +343,27 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         PackageManager pm = getPackageManager();
         android.content.pm.ChangedPackages changed = pm.getChangedPackages(packageSeq);
         if (changed != null) packageSeq = changed.getSequenceNumber();
-        Intent q = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+
+        // Поиск Leanback и обычных системных приложений
+        Intent tvIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+        List<ResolveInfo> ris = new ArrayList<>(pm.queryIntentActivities(tvIntent, 0));
+
+        Intent stdIntent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+        for (ResolveInfo stdRi : pm.queryIntentActivities(stdIntent, 0)) {
+            boolean exists = false;
+            for (ResolveInfo tvRi : ris) {
+                if (tvRi.activityInfo.packageName.equals(stdRi.activityInfo.packageName)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                ris.add(stdRi);
+            }
+        }
+
         Map<String, App> byPkg = new HashMap<>();
-        for (ResolveInfo ri : pm.queryIntentActivities(q, 0)) {
+        for (ResolveInfo ri : ris) {
             ActivityInfo ai = ri.activityInfo;
             if (hidden.contains(ai.packageName) || byPkg.containsKey(ai.packageName)) continue;
             App a = new App();
@@ -372,8 +378,20 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
             byPkg.put(a.pkg, a);
         }
 
+        // Предустановленные приложения в Dock для Яндекс ТВ
+        List<String> yaDock = Arrays.asList(
+            "com.yandex.tv.live",
+            "com.cultraview.newfilemanager",
+            "com.yandex.devices.appstore",
+            "com.yandex.tv.music"
+        );
+
         List<App> dock = new ArrayList<>();
-        for (String p : dockApps) if (byPkg.containsKey(p)) dock.add(byPkg.remove(p));
+        for (String p : yaDock) if (byPkg.containsKey(p)) dock.add(byPkg.remove(p));
+        if (dockApps != null) {
+            for (String p : dockApps) if (byPkg.containsKey(p)) dock.add(byPkg.remove(p));
+        }
+
         List<App> rest = new ArrayList<>(byPkg.values());
         Collections.sort(rest, (x, y) -> x.label.compareToIgnoreCase(y.label));
 
@@ -402,7 +420,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
             p.setMargins(i % cols == 0 ? 0 : dp(10), 0, i % cols == cols - 1 ? 0 : dp(10), 0);
             row.addView(tile, p);
         }
-        // Pad the last row so tiles keep their width.
         if (row != null) for (int i = rest.size() % cols; i != 0 && i < cols; i++) {
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, 1, 1f);
             p.setMargins(dp(10), 0, i == cols - 1 ? 0 : dp(10), 0);
@@ -417,7 +434,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         else if (!dockCards.isEmpty()) dockCards.get(0).requestFocus();
     }
 
-    /** A 16:9 card with the app's banner; the name shows under it while focused. */
     private View tile(App app, boolean inDock) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -450,7 +466,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
             img.setPadding(dp(22), dp(14), dp(22), dp(14));
         }
 
-        // Focus ring and sheen, drawn above the art.
         GradientDrawable ring = new GradientDrawable();
         ring.setCornerRadius(dp(10));
         ring.setStroke(dp(2), 0xE6FFFFFF);
@@ -470,10 +485,17 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         label.setAlpha(0f);
         if (!inDock) box.addView(label, llp(-1, -2, 0, dp(10), 0, 0));
 
-        card.setOnClickListener(v -> launch(new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
-                .setComponent(app.component)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)));
+        card.setOnClickListener(v -> {
+            Intent launchIntent = getPackageManager().getLaunchIntentForPackage(app.pkg);
+            if (launchIntent != null) {
+                launch(launchIntent);
+            } else {
+                launch(new Intent(Intent.ACTION_MAIN)
+                        .setComponent(app.component)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));
+            }
+        });
+
         card.setOnFocusChangeListener((v, has) -> {
             float s = has ? (inDock ? 1.12f : 1.1f) : 1f;
             v.animate().scaleX(s).scaleY(s).translationZ(has ? dp(14) : 0)
@@ -500,7 +522,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         return box;
     }
 
-    /** Explicit D-pad targets: one row per press, ends of rows and of the top bar don't wrap. */
     private void wireFocus() {
         int d = dockCards.size(), g = gridCards.size();
         for (int i = 0; i < pills.size(); i++) {
@@ -510,7 +531,7 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
             p.setNextFocusUpId(p.getId());
             p.setNextFocusDownId(d > 0 ? dockCards.get(Math.min(d - 1, d / 2)).getId() : p.getId());
         }
-        int topId = pills.get(0).getId();
+        int topId = pills.isEmpty() ? View.NO_ID : pills.get(0).getId();
         for (int i = 0; i < d; i++) {
             View c = dockCards.get(i);
             c.setNextFocusUpId(topId);
@@ -518,7 +539,7 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
             c.setNextFocusRightId(i == d - 1 ? c.getId() : dockCards.get(i + 1).getId());
             c.setNextFocusDownId(g > 0 ? gridCards.get(Math.min(i, g - 1)).getId() : c.getId());
         }
-        int lastRow = (g - 1) / cols;
+        int lastRow = g > 0 ? (g - 1) / cols : 0;
         for (int j = 0; j < g; j++) {
             View c = gridCards.get(j);
             int r = j / cols, col = j % cols;
@@ -536,7 +557,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         View row = (View) tileBox.getParent();
         int y = grid.getTop() + row.getTop();
         int screenH = getResources().getDisplayMetrics().heightPixels;
-        // First grid row: slide the dock band up to the top edge; later rows centre on screen.
         View band = (View) dockRow.getParent();
         int target = grid.indexOfChild(row) == 0
                 ? hero.getTop() + band.getTop() + dockRow.getTop() - dp(22)
@@ -684,7 +704,6 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
 
     private void fadeGlow(float alpha) {
         glow.animate().alpha(alpha).setDuration(300).start();
-        // The grid sits over the photo's busiest middle part, so dim it while browsing apps.
         gridShade.animate().alpha(alpha < 1f ? 1f : 0f).setDuration(300).start();
     }
 
@@ -695,10 +714,11 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         v.setScaleType(ImageView.ScaleType.CENTER_CROP);
         return v;
     }
-private long getWallpaperInterval() {
+
+    private long getWallpaperInterval() {
         return isUiHidden ? WALLPAPER_INTERVAL_IDLE : WALLPAPER_INTERVAL_ACTIVE;
     }
-    /** Decode the next photo off the main thread, then crossfade it in over the current one. */
+
     private void nextWallpaper() {
         handler.removeCallbacks(rotateWallpaper);
         if (wallpapers.length == 0) return;
@@ -730,7 +750,6 @@ private long getWallpaperInterval() {
 
     private void showWallpaper(Bitmap bm) {
         if (bm == null || isDestroyed()) return;
-        // Swap roles: the old front becomes the back, the new photo fades in on top.
         ImageView old = wallFront;
         wallFront = wallBack;
         wallBack = old;
@@ -740,7 +759,7 @@ private long getWallpaperInterval() {
         wallFront.setImageBitmap(bm);
         wallFront.setAlpha(0f);
         wallFront.animate().alpha(1f).setDuration(firstWallpaper ? 600 : 2000).withEndAction(() -> {
-            wallBack.setImageDrawable(null); // release the previous photo
+            wallBack.setImageDrawable(null);
         }).start();
         firstWallpaper = false;
     }
@@ -752,7 +771,6 @@ private long getWallpaperInterval() {
         handler.postDelayed(rotateWallpaper, Math.max(1000, delay));
     }
 
-    /** Average the banner's vivid pixels, then push saturation so the glow reads as a colour. */
     private int sampleColor(String pkg, Drawable d) {
         Integer cached = colorCache.get(pkg);
         if (cached != null) return cached;
@@ -861,10 +879,9 @@ private long getWallpaperInterval() {
         return Color.rgb((int) (Color.red(c) * f), (int) (Color.green(c) * f), (int) (Color.blue(c) * f));
     }
 
- @Override
+    @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         resetIdleTimer();
-        // Menu key on the remote opens the Inputs dropdown.
         if (e.getKeyCode() == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_UP && !pills.isEmpty()) {
             showInputs(pills.get(0));
             return true;
@@ -872,7 +889,6 @@ private long getWallpaperInterval() {
         return super.dispatchKeyEvent(e);
     }
 
-    /** 16:9 container. */
     static final class AspectFrame extends FrameLayout {
         AspectFrame(Context c) { super(c); }
         @Override protected void onMeasure(int w, int h) {
@@ -881,15 +897,15 @@ private long getWallpaperInterval() {
         }
     }
 
-    /** ScrollView that never auto-scrolls to the focused child; the activity scrolls it by row. */
     static final class HomeScrollView extends android.widget.ScrollView {
         HomeScrollView(Context c) { super(c); }
         @Override protected int computeScrollDeltaToGetChildRectOnScreen(android.graphics.Rect r) { return 0; }
     }
-private void hideInterface() {
+
+    private void hideInterface() {
         if (isUiHidden) return;
         isUiHidden = true;
-    if (glow != null) glow.animate().alpha(0f).setDuration(600).start();
+        if (glow != null) glow.animate().alpha(0f).setDuration(600).start();
         if (scroll != null) scroll.animate().alpha(0f).setDuration(600).start();
         if (clock != null) clock.animate().alpha(0f).setDuration(600).start();
         if (greeting != null) greeting.animate().alpha(0f).setDuration(600).start();
@@ -897,7 +913,7 @@ private void hideInterface() {
         for (View p : pills) {
             if (p != null) p.animate().alpha(0f).setDuration(600).start();
         }
-    scheduleWallpaper(WALLPAPER_INTERVAL_IDLE);
+        scheduleWallpaper(WALLPAPER_INTERVAL_IDLE);
     }
 
     private void showInterface() {
@@ -924,5 +940,5 @@ private void hideInterface() {
     public void onUserInteraction() {
         super.onUserInteraction();
         resetIdleTimer();
-    }    
+    }
 }
