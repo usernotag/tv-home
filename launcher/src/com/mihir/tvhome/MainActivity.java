@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
     private HomeScrollView scroll;
     private final Handler idleHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideUiRunnable = this::hideInterface;
-    private static final long IDLE_TIMEOUT_MS = 30000;
+    private static final long IDLE_TIMEOUT_MS = 120000;
     private boolean isUiHidden = false;
     private LinearLayout content, dockRow;
     private FrameLayout hero;
@@ -155,8 +155,8 @@ public class MainActivity extends Activity {
         if (getPackageManager().getChangedPackages(packageSeq) != null) buildApps();
         if (firstShow) { firstShow = false; playEntrance(); }
         // New photo on return if the current one has been up for the full interval.
-        if (wallIndex < 0 || SystemClock.elapsedRealtime() - wallChangedAt >= WALLPAPER_INTERVAL_MS) nextWallpaper();
-        else scheduleWallpaper(WALLPAPER_INTERVAL_MS - (SystemClock.elapsedRealtime() - wallChangedAt));
+        if (wallIndex < 0 || SystemClock.elapsedRealtime() - wallChangedAt >= getWallpaperInterval()) nextWallpaper();
+else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() - wallChangedAt));
     }
 
     @Override
@@ -307,13 +307,13 @@ public class MainActivity extends Activity {
         LinearLayout right = new LinearLayout(this);
         right.setGravity(Gravity.CENTER_VERTICAL);
         right.setClipChildren(false);
-        TextView inputs = pill("Inputs", "⇥");
-        inputs.setOnClickListener(v -> showInputs(v));
+        // TextView inputs = pill("Inputs", "→");
+// inputs.setOnClickListener(v -> showInputs(v));
         wifiPill = pill("Wi-Fi", "◉");
         wifiPill.setOnClickListener(v -> launch(new Intent(Settings.ACTION_WIFI_SETTINGS)));
         TextView settings = pill("Settings", "⚙");
         settings.setOnClickListener(v -> launch(new Intent(Settings.ACTION_SETTINGS)));
-        for (TextView p : new TextView[]{inputs, wifiPill, settings}) {
+        for (TextView p : new TextView[]{wifiPill, settings}) {
             right.addView(p, llp(-2, dp(30), dp(10), 0, 0, 0));
             pills.add(p);
         }
@@ -620,7 +620,7 @@ public class MainActivity extends Activity {
     private void updateClock() {
         Calendar now = Calendar.getInstance();
         int h = now.get(Calendar.HOUR_OF_DAY);
-        greeting.setText(h < 5 ? "GOOD NIGHT" : h < 12 ? "GOOD MORNING" : h < 17 ? "GOOD AFTERNOON" : "GOOD EVENING");
+        greeting.setText(h < 5 ? "ДОБРОЙ НОЧИ" : h < 12 ? "ДОБРОГО УТРА" : h < 17 ? "ПРИЯТНОГО ДНЯ" : "УЮТНОГО ВЕЧЕРА");
         boolean is24 = android.text.format.DateFormat.is24HourFormat(this);
         clock.setText(new SimpleDateFormat(is24 ? "H:mm" : "h:mm", Locale.getDefault()).format(now.getTime()));
         ampm.setText(is24 ? "" : (h < 12 ? "AM" : "PM"));
@@ -689,13 +689,23 @@ public class MainActivity extends Activity {
         v.setScaleType(ImageView.ScaleType.CENTER_CROP);
         return v;
     }
-
+private long getWallpaperInterval() {
+        return isUiHidden ? WALLPAPER_INTERVAL_IDLE : WALLPAPER_INTERVAL_ACTIVE;
+    }
     /** Decode the next photo off the main thread, then crossfade it in over the current one. */
     private void nextWallpaper() {
         handler.removeCallbacks(rotateWallpaper);
         if (wallpapers.length == 0) return;
         if (wallIndex < 0) wallIndex = getPreferences(MODE_PRIVATE).getInt("wallpaper", -1);
-        wallIndex = (wallIndex + 1) % wallpapers.length;
+        if (wallpapers.length > 1) {
+            int next;
+            do {
+                next = (int) (Math.random() * wallpapers.length);
+            } while (next == wallIndex);
+            wallIndex = next;
+        } else {
+            wallIndex = 0;
+        }
         getPreferences(MODE_PRIVATE).edit().putInt("wallpaper", wallIndex).apply();
         wallChangedAt = SystemClock.elapsedRealtime();
         String name = "wallpapers/" + wallpapers[wallIndex];
@@ -709,7 +719,7 @@ public class MainActivity extends Activity {
             Bitmap result = bm;
             runOnUiThread(() -> showWallpaper(result));
         }).start();
-        scheduleWallpaper(WALLPAPER_INTERVAL_MS);
+        scheduleWallpaper(getWallpaperInterval());
     }
 
     private void showWallpaper(Bitmap bm) {
@@ -873,6 +883,7 @@ public class MainActivity extends Activity {
 private void hideInterface() {
         if (isUiHidden) return;
         isUiHidden = true;
+    if (glow != null) glow.animate().alpha(0f).setDuration(600).start();
         if (scroll != null) scroll.animate().alpha(0f).setDuration(600).start();
         if (clock != null) clock.animate().alpha(0f).setDuration(600).start();
         if (greeting != null) greeting.animate().alpha(0f).setDuration(600).start();
@@ -880,11 +891,13 @@ private void hideInterface() {
         for (View p : pills) {
             if (p != null) p.animate().alpha(0f).setDuration(600).start();
         }
+    scheduleWallpaper(WALLPAPER_INTERVAL_IDLE);
     }
 
     private void showInterface() {
         if (!isUiHidden) return;
         isUiHidden = false;
+        if (glow != null) glow.animate().alpha(1f).setDuration(250).start();
         if (scroll != null) scroll.animate().alpha(1f).setDuration(250).start();
         if (clock != null) clock.animate().alpha(1f).setDuration(250).start();
         if (greeting != null) greeting.animate().alpha(1f).setDuration(250).start();
@@ -892,6 +905,7 @@ private void hideInterface() {
         for (View p : pills) {
             if (p != null) p.animate().alpha(1f).setDuration(250).start();
         }
+        scheduleWallpaper(WALLPAPER_INTERVAL_ACTIVE);
     }
 
     private void resetIdleTimer() {
