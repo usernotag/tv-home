@@ -296,7 +296,7 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         clock.setIncludeFontPadding(false);
         clockRow.addView(clock);
         ampm = text(12, "sans-serif-light", 0xCCFFFFFF);
-        clockRow.addView(ampm, llp(-2, -2, dp(6), 0, dp(8)));
+        clockRow.addView(ampm, llp(-2, -2, dp(6), 0, 0, dp(8)));
         left.addView(clockRow, llp(-2, -2, 0, dp(2), 0, dp(2)));
 
         date = text(10, "sans-serif-medium", 0x99FFFFFF);
