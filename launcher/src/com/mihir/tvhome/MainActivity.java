@@ -280,6 +280,7 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
     private View buildHeader() {
         FrameLayout header = new FrameLayout(this);
         header.setClipChildren(false);
+        android.graphics.Typeface customFont = android.graphics.Typeface.createFromAsset(getAssets(), "custom.ttf");
 
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
@@ -295,7 +296,7 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         clock.setIncludeFontPadding(false);
         clockRow.addView(clock);
         ampm = text(12, "sans-serif-light", 0xCCFFFFFF);
-        clockRow.addView(ampm, llp(-2, -2, dp(6), 0, 0, dp(8)));
+        clockRow.addView(ampm, llp(-2, -2, dp(6), 0, dp(8)));
         left.addView(clockRow, llp(-2, -2, 0, dp(2), 0, dp(2)));
 
         date = text(10, "sans-serif-medium", 0x99FFFFFF);
@@ -303,7 +304,10 @@ else scheduleWallpaper(getWallpaperInterval() - (SystemClock.elapsedRealtime() -
         date.setPadding(0, 0, dp(16), 0); // letterSpacing is not counted in the measured width
         date.setLetterSpacing(0.22f);
         left.addView(date);
-        for (TextView t : new TextView[]{greeting, clock, ampm, date}) t.setShadowLayer(dp(10), 0, dp(1), 0xB3000000);
+        for (TextView t : new TextView[]{greeting, clock, ampm, date}) {
+            t.setTypeface(customFont);
+            t.setShadowLayer(dp(10), 0, dp(1), 0xB3000000);
+        }
         header.addView(left, new FrameLayout.LayoutParams(dp(420), -2, Gravity.START | Gravity.TOP));
 
         LinearLayout right = new LinearLayout(this);
