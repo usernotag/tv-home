@@ -84,6 +84,8 @@ public class MainActivity extends Activity {
     private final Handler idleHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideUiRunnable = this::hideInterface;
     private static final long IDLE_TIMEOUT_MS = 120000;
+    private static final long WALLPAPER_INTERVAL_ACTIVE = 12 * 60 * 1000L;
+private static final long WALLPAPER_INTERVAL_IDLE = 3 * 60 * 1000L;
     private boolean isUiHidden = false;
     private LinearLayout content, dockRow;
     private FrameLayout hero;
